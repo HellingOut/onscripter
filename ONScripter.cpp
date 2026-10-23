@@ -33,7 +33,7 @@ extern "C" void waveCallback(int channel);
 #define FONT_FILE "default.ttf"
 #define REGISTRY_FILE "registry.txt"
 #define DLL_FILE "dll.txt"
-#define DEFAULT_ENV_FONT "‚l‚r ƒSƒVƒbƒN"
+#define DEFAULT_ENV_FONT "ï¿½lï¿½r ï¿½Sï¿½Vï¿½bï¿½N"
 #define DEFAULT_AUTOMODE_TIME 1000
 
 void ONScripter::initSDL()
@@ -55,7 +55,7 @@ void ONScripter::initSDL()
     }
 #endif
 
-#if !defined(IOS)
+#if !defined(IOS) && !defined(IPHONE)
     if (SDL_InitSubSystem(SDL_INIT_JOYSTICK) == 0 && SDL_JoystickOpen(0) != NULL)
         printf("Initialize JOYSTICK\n");
 #endif
@@ -372,6 +372,10 @@ int ONScripter::openScript()
 
 int ONScripter::init()
 {
+    script_h.detectScreenSize();
+    screen_width = script_h.screen_width;
+    screen_height = script_h.screen_height;
+
     initSDL();
     openAudio();
 

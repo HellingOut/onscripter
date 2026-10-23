@@ -747,7 +747,7 @@ int ONScripter::textCommand()
     char* buf = script_h.getStringBuffer();
 
     bool tag_flag = true;
-    unsigned short unicode = script_h.enc.getUTF16("Åy", Encoding::CODE_CP932);
+    unsigned short unicode = script_h.enc.getUTF16("ÔøΩy", Encoding::CODE_CP932);
     int n = script_h.enc.getBytes(buf[string_buffer_offset]);
     if (buf[string_buffer_offset] == '[')
         string_buffer_offset++;
@@ -760,7 +760,7 @@ int ONScripter::textCommand()
     int start_offset = string_buffer_offset;
     int end_offset = start_offset;
     while (tag_flag && buf[string_buffer_offset]) {
-        unsigned short unicode = script_h.enc.getUTF16("Åz", Encoding::CODE_CP932);
+        unsigned short unicode = script_h.enc.getUTF16("ÔøΩz", Encoding::CODE_CP932);
         int n = script_h.enc.getBytes(buf[string_buffer_offset]);
         if (zenkakko_flag &&
             script_h.enc.getUTF16(buf + string_buffer_offset) == unicode) {
@@ -1168,13 +1168,19 @@ bool ONScripter::processText()
                 clickstr_state = CLICK_NONE;
             }
             else if (script_h.getStringBuffer()[string_buffer_offset + 1] == '@') {
+                // Skip the click character before calling clickWait(), otherwise
+                // the next processText() call starts at the same character and
+                // the page never advances.
+                string_buffer_offset++;
                 return clickWait(out_text);
             }
             else if (script_h.getStringBuffer()[string_buffer_offset + 1] == '\\') {
+                string_buffer_offset++;
                 return clickNewPage(out_text);
             }
             else {
                 out_text[1] = script_h.getStringBuffer()[string_buffer_offset + 1];
+                string_buffer_offset++;
                 if (sentence_font.getRemainingLine() <= clickstr_line)
                     return clickNewPage(out_text);
                 else

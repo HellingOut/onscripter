@@ -91,6 +91,10 @@ public:
     void setKeyEXE(const char* path);
     int getWidth() { return screen_width; };
     int getHeight() { return screen_height; };
+    const char* getCurrentLabelName() { return current_label_info.name; };
+    int getCurrentLineNumber() { return current_line; };
+    const char* getCurrentCommand() { return script_h.getStringBuffer(); };
+    int getScriptEncoding() { return script_h.enc.getEncoding(); };
     ButtonState& getCurrentButtonState() { return current_button_state; };
     int getSkip() { return automode_flag ? 2 : ((skip_mode & SKIP_NORMAL) ? 1 : 0); };
     AnimationInfo* getSMPEGInfo() { return smpeg_info; };
@@ -533,6 +537,9 @@ private:
     bool keyPressEvent(SDL_KeyboardEvent* event);
     void timerEvent(bool init_flag);
     void runEventLoop();
+#if defined(IPHONE) && !defined(IOS)
+    void handleTouchGesture(SDL_Event& event);
+#endif
 
     // ----------------------------------------
     // variables and methods relevant to file/file2

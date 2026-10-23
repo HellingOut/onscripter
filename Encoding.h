@@ -27,7 +27,8 @@
 class Encoding {
 public:
     enum { CODE_CP932 = 0,
-           CODE_UTF8 = 1
+           CODE_UTF8 = 1,
+           CODE_CP1251 = 2
     };
 
     Encoding();

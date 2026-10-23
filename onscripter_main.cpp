@@ -24,7 +24,71 @@
 #include "ONScripter.h"
 #include "version.h"
 
+#if defined(IPHONE) && !defined(IOS)
+#include <dirent.h>
+#include <limits.h>
+#include <mach-o/dyld.h>
+#include <sys/stat.h>
+#include <unistd.h>
+extern "C" void showMissingDataAlert(const char* message);
+extern "C" void installCrashLogger(void);
+extern "C" char* selectGameDirectory(const char* root);
+#endif
+
 ONScripter ons;
+
+#if defined(IPHONE) && !defined(IOS)
+static void makeDirectory(const char* path)
+{
+    char tmp[PATH_MAX];
+    snprintf(tmp, sizeof(tmp), "%s", path);
+
+    for (char* p = tmp + 1; *p; p++) {
+        if (*p != '/') continue;
+        *p = '\0';
+        mkdir(tmp, 0755);
+        *p = '/';
+    }
+    mkdir(tmp, 0755);
+}
+
+static bool hasScript(const char* dir)
+{
+    static const char* scripts[] = {
+        "0.txt", "00.txt", "nscript.dat",
+        "nscr_sec.dat", "nscript.___", "pscript.dat"
+    };
+    char path[PATH_MAX];
+
+    for (unsigned i = 0; i < sizeof(scripts) / sizeof(scripts[0]); i++) {
+        snprintf(path, sizeof(path), "%s/%s", dir, scripts[i]);
+        if (access(path, R_OK) == 0) return true;
+    }
+    return false;
+}
+
+static bool hasAnyGame(const char* dir)
+{
+    if (hasScript(dir)) return true;
+
+    DIR* dp = opendir(dir);
+    if (!dp) return false;
+
+    struct dirent* entry;
+    bool found = false;
+    while (!found && (entry = readdir(dp)) != NULL) {
+        if (entry->d_name[0] == '.') continue;
+
+        char path[PATH_MAX];
+        snprintf(path, sizeof(path), "%s/%s", dir, entry->d_name);
+        struct stat st;
+        if (stat(path, &st) == 0 && S_ISDIR(st.st_mode) && hasScript(path))
+            found = true;
+    }
+    closedir(dp);
+    return found;
+}
+#endif
 
 #if defined(IOS)
 #import <Foundation/NSArray.h>
@@ -372,6 +436,9 @@ extern "C" int main(int argc, char** argv)
 int main(int argc, char** argv)
 #endif
 {
+#if defined(IPHONE) && !defined(IOS)
+    installCrashLogger();
+#endif
     printf("ONScripter version %s(%d.%02d)\n", ONS_VERSION, NSC_VERSION / 100, NSC_VERSION % 100);
 
 #if defined(PSP)
@@ -434,6 +501,77 @@ int main(int argc, char** argv)
 #if defined(RENDER_FONT_OUTLINE)
     ons.renderFontOutline();
 #endif
+#elif defined(IPHONE)
+    // A GUI application cannot use its current working directory (it is "/"),
+    // so keep the game data and save files inside the application container.
+    {
+        const char* home = getenv("HOME");
+        if (home == NULL) home = "/var/mobile";
+
+        char cache_dir[PATH_MAX];
+        char docs_dir[PATH_MAX];
+        snprintf(cache_dir, sizeof(cache_dir), "%s/Library/Caches/ONS", home);
+        snprintf(docs_dir, sizeof(docs_dir), "%s/Documents/ONS", home);
+        makeDirectory(cache_dir);
+        makeDirectory(docs_dir);
+
+        // Prefer game data stored in the Documents directory (which is also
+        // exposed through iTunes file sharing), then data bundled into the
+        // .app, and finally the official /Library/Caches/ONS location.
+        char bundle_dir[PATH_MAX] = "";
+        char exe_path[PATH_MAX];
+        uint32_t exe_size = sizeof(exe_path);
+        if (_NSGetExecutablePath(exe_path, &exe_size) == 0) {
+            char* slash = strrchr(exe_path, '/');
+            if (slash) {
+                *slash = '\0';
+                snprintf(bundle_dir, sizeof(bundle_dir), "%s", exe_path);
+            }
+        }
+
+        char game_dir[PATH_MAX] = "";
+        char save_dir[PATH_MAX];
+        snprintf(save_dir, sizeof(save_dir), "%s", docs_dir);
+
+        // Documents/ONS contains one folder per game.  The selector returns
+        // the folder chosen by the user; the game's saves live next to its
+        // data, so different games do not share save files.
+        if (hasAnyGame(docs_dir)) {
+            char* selected = selectGameDirectory(docs_dir);
+            if (selected) {
+                snprintf(game_dir, sizeof(game_dir), "%s", selected);
+                snprintf(save_dir, sizeof(save_dir), "%s", selected);
+                free(selected);
+            }
+        }
+
+        if (!game_dir[0] && bundle_dir[0] && hasScript(bundle_dir)) {
+            snprintf(game_dir, sizeof(game_dir), "%s", bundle_dir);
+        }
+        else if (!game_dir[0] && hasScript("/var/mobile/Documents/ONS")) {
+            snprintf(game_dir, sizeof(game_dir), "%s", "/var/mobile/Documents/ONS");
+        }
+        else if (!game_dir[0] && hasScript("/var/mobile/Media/ONS")) {
+            snprintf(game_dir, sizeof(game_dir), "%s", "/var/mobile/Media/ONS");
+        }
+
+        if (game_dir[0]) {
+            ons.setArchivePath(game_dir);
+            ons.setSaveDir(save_dir);
+        }
+        else {
+            ons.setArchivePath(cache_dir);
+            ons.setSaveDir(docs_dir);
+            fprintf(stderr, "No game data found. Put each game in its own folder:\n"
+                            "  %s/<game>/nscript.dat\n"
+                            "or into one of these directories:\n"
+                            "  %s\n  %s\n  /var/mobile/Documents/ONS\n"
+                            "  /var/mobile/Media/ONS\n",
+                    docs_dir, bundle_dir[0] ? bundle_dir : "(application bundle)", cache_dir);
+        }
+
+        ons.enableButtonShortCut();
+    }
 #endif
 
     // ----------------------------------------
@@ -524,7 +662,18 @@ int main(int argc, char** argv)
     // Run ONScripter
 
 #if !defined(ANDROID)
+#if defined(IPHONE) && !defined(IOS)
+    if (ons.openScript()) {
+        showMissingDataAlert("No game data found.\n\n"
+                             "Put each game into its own folder:\n"
+                             "ONScripter/Documents/ONS/<game>/nscript.dat\n\n"
+                             "Copy nscript.dat (or 0.txt), the .nsa/.sar archives "
+                             "and default.ttf into that folder.");
+        return 0;
+    }
+#else
     if (ons.openScript()) exit(-1);
+#endif
 #endif
     if (ons.init()) exit(-1);
     ons.executeLabel();

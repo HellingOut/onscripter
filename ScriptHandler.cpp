@@ -258,14 +258,38 @@ readTokenTop:
 #ifdef ENABLE_1BYTE_CHAR
     else if (ch == '`') {
         ch = *++buf;
-        while (ch != '`' && ch != 0x0a && ch != '\0') {
+        while (ch != 0x0a && ch != '\0') {
+            if (ch == '`') {
+                // A text line may contain several backtick-delimited parts
+                // separated by a click marker, e.g. first@second@third.
+                if ((buf[1] == '@' || buf[1] == '\\') && buf[2] == '`') {
+                    // Resume from the opening backtick of the next part, so it
+                    // is parsed as quoted text (textgosub uses getWait()).
+                    if (!wait_script) wait_script = buf + 1;
+                    addStringBuffer(buf[1]);
+                    buf += 3;
+                    ch = *buf;
+                    continue;
+                }
+
+                if (buf[1] == '@' || buf[1] == '\\') {
+                    // For a trailing click marker, resume just after it.
+                    if (!wait_script) wait_script = buf + 2;
+                    addStringBuffer(buf[1]);
+                    buf += 2;
+                    break;
+                }
+
+                buf++;
+                break;
+            }
+
             int n = enc.getBytes(ch);
             for (int i = 0; i < n; i++) {
                 addStringBuffer(ch);
                 ch = *++buf;
             }
         }
-        if (ch == '`') buf++;
 
         text_flag = true;
         end_status |= END_1BYTE_CHAR;
@@ -826,8 +850,8 @@ int ScriptHandler::getStringFromInteger(char* buffer, int no, int num_column, bo
     if (is_zero_inserted) {
         if (code == Encoding::CODE_CP932) {
             for (i = 0; i < num_space; i++) {
-                buffer[c++] = ((char*)"‚O")[0];
-                buffer[c++] = ((char*)"‚O")[1];
+                buffer[c++] = ((char*)"ï¿½O")[0];
+                buffer[c++] = ((char*)"ï¿½O")[1];
             }
         }
         if (code == Encoding::CODE_UTF8) {
@@ -841,8 +865,8 @@ int ScriptHandler::getStringFromInteger(char* buffer, int no, int num_column, bo
     else {
         if (code == Encoding::CODE_CP932) {
             for (i = 0; i < num_space; i++) {
-                buffer[c++] = ((char*)"@")[0];
-                buffer[c++] = ((char*)"@")[1];
+                buffer[c++] = ((char*)"ï¿½@")[0];
+                buffer[c++] = ((char*)"ï¿½@")[1];
             }
         }
         if (code == Encoding::CODE_UTF8) {
@@ -855,8 +879,8 @@ int ScriptHandler::getStringFromInteger(char* buffer, int no, int num_column, bo
     }
     if (num_minus == 1) {
         if (code == Encoding::CODE_CP932) {
-            buffer[c++] = "|"[0];
-            buffer[c++] = "|"[1];
+            buffer[c++] = "ï¿½|"[0];
+            buffer[c++] = "ï¿½|"[1];
         }
         if (code == Encoding::CODE_UTF8) {
             buffer[c++] = 0xef;
@@ -865,7 +889,7 @@ int ScriptHandler::getStringFromInteger(char* buffer, int no, int num_column, bo
         }
     }
     c = (num_column - 1) * n;
-    char num_str[] = "‚O‚P‚Q‚R‚S‚T‚U‚V‚W‚X";
+    char num_str[] = "ï¿½Oï¿½Pï¿½Qï¿½Rï¿½Sï¿½Tï¿½Uï¿½Vï¿½Wï¿½X";
     for (i = 0; i < num_digit; i++) {
         if (code == Encoding::CODE_CP932) {
             buffer[c] = num_str[no % 10 * 2];
@@ -1019,6 +1043,167 @@ ScriptHandler::VariableData& ScriptHandler::getVariableData(int no)
 // ----------------------------------------
 // Private methods
 
+static bool isValidUTF8String(const unsigned char* s, int len)
+{
+    int i = 0;
+    bool multibyte = false;
+    while (i < len) {
+        unsigned char c = s[i];
+        if (c < 0x80) {
+            i++;
+            continue;
+        }
+
+        int n;
+        if (c >= 0xc2 && c <= 0xdf) n = 2;
+        else if (c >= 0xe0 && c <= 0xef) n = 3;
+        else if (c >= 0xf0 && c <= 0xf4) n = 4;
+        else return false;
+
+        if (i + n > len) return false;
+        for (int j = 1; j < n; j++) {
+            if ((s[i + j] & 0xc0) != 0x80) return false;
+        }
+        multibyte = true;
+        i += n;
+    }
+    return multibyte;
+}
+
+static bool isValidCP932String(const unsigned char* s, int len)
+{
+    int i = 0;
+    bool multibyte = false;
+    while (i < len) {
+        unsigned char c = s[i];
+        if (c <= 0x7f || (c >= 0xa1 && c <= 0xdf)) {
+            i++;
+            continue;
+        }
+        if ((c >= 0x81 && c <= 0x9f) || (c >= 0xe0 && c <= 0xfc)) {
+            if (i + 1 >= len) return false;
+            unsigned char t = s[i + 1];
+            if (!((t >= 0x40 && t <= 0x7e) || (t >= 0x80 && t <= 0xfc))) return false;
+            multibyte = true;
+            i += 2;
+            continue;
+        }
+        return false;
+    }
+    return multibyte;
+}
+
+int ScriptHandler::detectEncoding()
+{
+    struct LineStats {
+        int utf8_good, utf8_bad, cp932_good, cp932_bad;
+        int non_ascii, bytes_e0, bytes_80_9f;
+    };
+
+    if (!script_buffer || script_buffer_length <= 0) return Encoding::CODE_CP932;
+
+    // Prefer backtick text lines when they exist; comments and command strings
+    // can legitimately stay in another encoding (usually CP932).
+    bool has_backtick_text = false;
+    for (char* p = script_buffer, *end = script_buffer + script_buffer_length; p < end;) {
+        char* line_end = (char*)memchr(p, '\n', end - p);
+        if (!line_end) line_end = end;
+        char* q = p;
+        while (q < line_end && (*q == ' ' || *q == '\t')) q++;
+        if (q < line_end && *q != ';') {
+            bool non_ascii = false;
+            for (char* r = q; r < line_end; r++)
+                if ((unsigned char)*r >= 0x80) { non_ascii = true; break; }
+            if (non_ascii && *q == '`') {
+                has_backtick_text = true;
+                break;
+            }
+        }
+        p = line_end + 1;
+    }
+
+    LineStats stats = { 0, 0, 0, 0, 0, 0, 0 };
+    for (char* p = script_buffer, *end = script_buffer + script_buffer_length; p < end;) {
+        char* line_end = (char*)memchr(p, '\n', end - p);
+        if (!line_end) line_end = end;
+        char* q = p;
+        while (q < line_end && (*q == ' ' || *q == '\t')) q++;
+
+        bool use_line = q < line_end && *q != ';';
+        if (has_backtick_text && (q >= line_end || *q != '`')) use_line = false;
+
+        if (use_line) {
+            bool non_ascii = false;
+            for (char* r = q; r < line_end; r++)
+                if ((unsigned char)*r >= 0x80) { non_ascii = true; break; }
+
+            if (non_ascii) {
+                int len = (int)(line_end - q);
+                const unsigned char* s = (const unsigned char*)q;
+                if (isValidUTF8String(s, len)) stats.utf8_good++;
+                else stats.utf8_bad++;
+                if (isValidCP932String(s, len)) stats.cp932_good++;
+                else stats.cp932_bad++;
+
+                for (int i = 0; i < len; i++) {
+                    if (s[i] < 0x80) continue;
+                    stats.non_ascii++;
+                    if (s[i] >= 0xe0) stats.bytes_e0++;
+                    if (s[i] >= 0x80 && s[i] <= 0x9f) stats.bytes_80_9f++;
+                }
+            }
+        }
+        p = line_end + 1;
+    }
+
+    if (stats.utf8_good > 0 && stats.utf8_bad == 0) return Encoding::CODE_UTF8;
+
+    // Russian CP1251 text normally consists almost entirely of bytes 0xE0-0xFF
+    // and is not valid CP932.  This keeps Shift-JIS games on CP932.
+    if (stats.cp932_bad > stats.cp932_good &&
+        stats.bytes_e0 * 10 >= stats.non_ascii * 6 &&
+        stats.bytes_80_9f * 5 <= stats.non_ascii) {
+        return Encoding::CODE_CP1251;
+    }
+
+    return Encoding::CODE_CP932;
+}
+
+// Some Russian translations of Japanese games escape characters which are
+// awkward in their mixed CP1251/CP932 script files as 0xDA followed by the
+// five-digit decimal character code.  In the Higanbana translation this is
+// used for the guillemets: 0xDA00171 -> 0xAB ("Â«"), 0xDA00187 -> 0xBB ("Â»").
+// Convert those escapes before the script is parsed, so normal CP1251
+// decoding handles the resulting bytes.
+static void convertCP1251Escapes(char* buf, int& length)
+{
+    char* src = buf;
+    char* dst = buf;
+    char* end = buf + length;
+    while (src < end) {
+        if ((unsigned char)src[0] == 0xda && end - src >= 6 &&
+            src[1] >= '0' && src[1] <= '9' &&
+            src[2] >= '0' && src[2] <= '9' &&
+            src[3] >= '0' && src[3] <= '9' &&
+            src[4] >= '0' && src[4] <= '9' &&
+            src[5] >= '0' && src[5] <= '9' &&
+            (end - src == 6 || src[6] < '0' || src[6] > '9')) {
+            int code = (src[1] - '0') * 10000 +
+                       (src[2] - '0') * 1000 +
+                       (src[3] - '0') * 100 +
+                       (src[4] - '0') * 10 +
+                       (src[5] - '0');
+            if (code >= 0x20 && code < 0x100) {
+                *dst++ = (char)code;
+                src += 6;
+                continue;
+            }
+        }
+        *dst++ = *src++;
+    }
+    length = dst - buf;
+}
+
 int ScriptHandler::readScript(char* path)
 {
     archive_path = new char[strlen(path) + 1];
@@ -1100,7 +1285,105 @@ int ScriptHandler::readScript(char* path)
 
     script_buffer_length = p_script_buffer - script_buffer;
 
+    // Some games ship a UTF-8 script with a byte order mark.  The BOM is not
+    // part of the first label (e.g. "*define"), so remove it before parsing.
+    if (script_buffer_length >= 3 &&
+        (unsigned char)script_buffer[0] == 0xef &&
+        (unsigned char)script_buffer[1] == 0xbb &&
+        (unsigned char)script_buffer[2] == 0xbf) {
+        memmove(script_buffer, script_buffer + 3, script_buffer_length - 3);
+        script_buffer_length -= 3;
+        enc.setEncoding(Encoding::CODE_UTF8);
+    }
+    else if (enc.getEncoding() == Encoding::CODE_CP932) {
+        enc.setEncoding(detectEncoding());
+    }
+
+    if (enc.getEncoding() == Encoding::CODE_CP1251) {
+        convertCP1251Escapes(script_buffer, script_buffer_length);
+    }
+
     return 0;
+}
+
+void ScriptHandler::detectScreenSize()
+{
+    if (!script_buffer || script_buffer_length <= 0) return;
+
+    // Some games do not declare their resolution with a "mode" config line,
+    // but their setwindow commands use the bottom-right screen coordinates
+    // (e.g. 639,479 for 640x480 or 960,720 for 960x720).  Use the largest
+    // such coordinate pair as a fallback.
+    int max_width = 0;
+    int max_height = 0;
+
+    char* p = script_buffer;
+    char* end = script_buffer + script_buffer_length;
+    while (p < end) {
+        char* line_end = (char*)memchr(p, '\n', end - p);
+        if (!line_end) line_end = end;
+
+        char* q = p;
+        while (q < line_end && (*q == ' ' || *q == '\t')) q++;
+
+        if (q < line_end && *q == ';') {
+            p = line_end + 1;
+            continue;
+        }
+
+        if (line_end - q > 9 &&
+            !strncmp(q, "setwindow", 9) &&
+            (q[9] == ' ' || q[9] == '\t')) {
+            char* color = (char*)memchr(q, '#', line_end - q);
+            if (color) {
+                // Skip "#rrggbb", then read the numeric parameters that follow
+                // it.  For a colour window the last two numbers are x2,y2.
+                char* r = color + 1;
+                while (r < line_end && *r != ',' && *r != ' ' && *r != '\t') r++;
+
+                int nums[8];
+                int num_count = 0;
+                while (r < line_end && num_count < 8) {
+                    if (*r == ',' || *r == ' ' || *r == '\t') {
+                        r++;
+                        continue;
+                    }
+                    if ((*r >= '0' && *r <= '9') || *r == '-') {
+                        char* next = NULL;
+                        long value = strtol(r, &next, 10);
+                        if (next == r) break;
+                        nums[num_count++] = (int)value;
+                        r = next;
+                    }
+                    else {
+                        break;
+                    }
+                }
+
+                if (num_count >= 2) {
+                    int w = nums[num_count - 2];
+                    int h = nums[num_count - 1];
+                    if (w > max_width) max_width = w;
+                    if (h > max_height) max_height = h;
+                }
+            }
+        }
+
+        p = line_end + 1;
+    }
+
+    if (max_width <= 0 || max_height <= 0) return;
+
+    // x2,y2 are usually inclusive coordinates (639,479 -> 640x480), but some
+    // scripts already use the exact width/height (960,720).  Both coordinates
+    // being odd is a good indicator of the inclusive form.
+    if ((max_width & 1) && (max_height & 1)) {
+        max_width++;
+        max_height++;
+    }
+
+    if (max_width > screen_width) screen_width = max_width;
+    if (max_height > screen_height) screen_height = max_height;
 }
 
 int ScriptHandler::readScriptSub(FILE* fp, char** buf, int encrypt_mode)

@@ -118,6 +118,12 @@ public:
     int parseIntExpression(char** buf);
     void readVariable(bool reread_flag = false);
 
+    // Try to infer the native game resolution from setwindow coordinates.
+    void detectScreenSize();
+
+    // Detect UTF-8 / CP932 / CP1251 from the script text.
+    int detectEncoding();
+
     // function for string access
     inline char* getStringBuffer() { return string_buffer; };
     char* saveStringBuffer();

@@ -1,0 +1,171 @@
+# Theos Makefile for ONScripter (iOS 6+)
+#
+# Targets:
+#   make                 - build the ONScripter .app and the data conversion tools
+#   make deps            - download and build the iOS dependencies (SDL 1.3, SDL_image,
+#                          SDL_mixer, SDL_ttf, FreeType, libjpeg, libmad, Tremor)
+#   make package         - build and package a .deb
+#
+# The prebuilt (static) libraries and headers live in $(IOS_DEPS_DIR) by default.
+# If you already have a directory with include/ and lib/ from the legacy
+# Makefile.iPhone, point IOS_DEPS_DIR at it:
+#
+#   make IOS_DEPS_DIR=/path/to/ios/sdk
+#
+# The iOS dependencies are built for armv7 / iPhoneOS 6.1 so that the resulting
+# binary runs on iOS 6 through iOS 10.  iOS 11 dropped 32-bit applications, so
+# an arm64 build requires a newer deployment target (>= 7.0) and a full rebuild
+# of the dependencies for arm64.
+#
+# If you are building on macOS with Xcode and only want to rebuild ONScripter
+# against the official onscripter_ios SDK, set IOS_DEPS_DIR to its
+# Release-iphoneos directory.
+
+IOS_SDKVERSION ?= 7.1
+IOS_DEPLOYMENT ?= 6.0
+IOS_ARCH ?= armv7
+
+TARGET = iphone:clang:$(IOS_SDKVERSION):$(IOS_DEPLOYMENT)
+ARCHS = $(IOS_ARCH)
+
+# Old code base: do not turn warnings into errors.
+GO_EASY_ON_ME = 1
+
+include $(THEOS)/makefiles/common.mk
+
+IOS_DEPS_DIR ?= $(THEOS_PROJECT_DIR)/deps
+IOS_DEPS_LIB = $(IOS_DEPS_DIR)/lib
+IOS_DEPS_INC = $(IOS_DEPS_DIR)/include
+
+# The official iOS port uses SDL 1.3 (the pre-2.0 SDL tree) with the renderer
+# API.  IPHONE (instead of IOS) keeps ONScripter's plain SDL entry point; SDL's
+# UIKit backend provides main()/UIApplicationMain and translates touches into
+# mouse events.  The data/cache directories are set up in onscripter_main.cpp.
+COMMON_DEFS = -DIPHONE -DMACOSX -DPDA_AUTOSIZE -DUSE_SDL_RENDERER \
+	-DUTF8_CAPTION -DUTF8_FILESYSTEM -DENABLE_1BYTE_CHAR
+
+COMMON_CFLAGS = -I$(THEOS_PROJECT_DIR) \
+	-I$(IOS_DEPS_INC) \
+	-I$(IOS_DEPS_INC)/SDL \
+	-Wno-deprecated-declarations -Wno-unused-parameter \
+	-Wno-unused-variable -Wno-unused-but-set-variable -Wno-parentheses \
+	-Wno-missing-field-initializers -Wno-sign-compare -Wno-format \
+	-Wno-char-subscripts -Wno-multichar -Wno-switch -Wno-unknown-pragmas \
+	-Wno-invalid-source-encoding
+
+COMMON_CXXFLAGS = -std=gnu++14 -stdlib=libc++
+
+COMMON_LDFLAGS = -L$(IOS_DEPS_LIB) -stdlib=libc++
+
+# Static libraries must be force-loaded: Theos puts LDFLAGS before the object
+# files, and Darwin's linker does not search an archive twice.
+define force_load
+-Wl,-force_load,$(IOS_DEPS_LIB)/lib$(1).a
+endef
+
+DECODER_FILES = DirectReader.cpp SarReader.cpp NsaReader.cpp sjis2utf16.cpp
+
+GUI_FILES = ONScripter.cpp \
+	ONScripter_animation.cpp \
+	ONScripter_command.cpp \
+	ONScripter_effect.cpp \
+	ONScripter_effect_breakup.cpp \
+	ONScripter_effect_cascade.cpp \
+	ONScripter_event.cpp \
+	ONScripter_file.cpp \
+	ONScripter_file2.cpp \
+	ONScripter_image.cpp \
+	ONScripter_lut.cpp \
+	ONScripter_rmenu.cpp \
+	ONScripter_sound.cpp \
+	ONScripter_text.cpp \
+	AnimationInfo.cpp \
+	FontInfo.cpp \
+	DirtyRect.cpp \
+	Encoding.cpp \
+	resize_image.cpp
+
+ONSCRIPTER_FILES = onscripter_main.cpp \
+	$(DECODER_FILES) \
+	ScriptHandler.cpp \
+	ScriptParser.cpp \
+	ScriptParser_command.cpp \
+	$(GUI_FILES)
+
+### Data conversion tools ####################################################
+
+TOOL_NAME = sardec nsadec sarconv nsaconv
+
+sardec_FILES = sardec.cpp DirectReader.cpp SarReader.cpp sjis2utf16.cpp
+sardec_CFLAGS = $(COMMON_DEFS) $(COMMON_CFLAGS)
+sardec_CCFLAGS = $(COMMON_CXXFLAGS)
+sardec_LDFLAGS = $(COMMON_LDFLAGS) -lz -lbz2
+
+nsadec_FILES = nsadec.cpp $(DECODER_FILES)
+nsadec_CFLAGS = $(COMMON_DEFS) $(COMMON_CFLAGS)
+nsadec_CCFLAGS = $(COMMON_CXXFLAGS)
+nsadec_LDFLAGS = $(COMMON_LDFLAGS) -lz -lbz2
+
+sarconv_FILES = sarconv.cpp conv_shared.cpp resize_image.cpp \
+	DirectReader.cpp SarReader.cpp sjis2utf16.cpp
+sarconv_CFLAGS = $(COMMON_DEFS) $(COMMON_CFLAGS)
+sarconv_CCFLAGS = $(COMMON_CXXFLAGS)
+sarconv_LDFLAGS = $(COMMON_LDFLAGS) \
+	$(call force_load,jpeg) -lz -lbz2
+
+nsaconv_FILES = nsaconv.cpp conv_shared.cpp resize_image.cpp $(DECODER_FILES)
+nsaconv_CFLAGS = $(COMMON_DEFS) $(COMMON_CFLAGS)
+nsaconv_CCFLAGS = $(COMMON_CXXFLAGS)
+nsaconv_LDFLAGS = $(COMMON_LDFLAGS) \
+	$(call force_load,jpeg) -lz -lbz2
+
+### ONScripter application ###################################################
+
+APPLICATION_NAME = onscripter
+onscripter_FILES = $(ONSCRIPTER_FILES) ios/MissingDataAlert.m ios/CrashLogger.mm ios/GameSelector.mm
+
+# Optional: embed a game inside the .app.  The files from GAME_DIR are copied
+# into the application bundle, where ONScripter looks for 0.txt/nscript.dat.
+#   make ipa GAME_DIR=/path/to/game
+ifneq ($(GAME_DIR),)
+onscripter_RESOURCE_DIRS = Resources $(GAME_DIR)
+endif
+onscripter_CFLAGS = $(COMMON_DEFS) $(COMMON_CFLAGS)
+onscripter_CCFLAGS = $(COMMON_CXXFLAGS)
+onscripter_LDFLAGS = $(COMMON_LDFLAGS) \
+	$(call force_load,SDL) \
+	$(call force_load,SDL_image) \
+	$(call force_load,SDL_mixer) \
+	$(call force_load,SDL_ttf) \
+	$(call force_load,freetype) \
+	$(call force_load,vorbisidec) \
+	$(call force_load,mad) \
+	$(call force_load,ogg) \
+	-lz -lbz2
+onscripter_FRAMEWORKS = UIKit Foundation OpenGLES QuartzCore CoreGraphics \
+	CoreAudio AudioToolbox ImageIO MobileCoreServices
+onscripter_BUNDLE_NAME = ONScripter
+onscripter_INSTALL_PATH = /Applications
+
+include $(THEOS_MAKE_PATH)/tool.mk
+include $(THEOS_MAKE_PATH)/application.mk
+
+### Packaging ################################################################
+
+ipa: all
+	@rm -rf "$(THEOS_STAGING_DIR)"
+	@$(MAKE) -f $(firstword $(MAKEFILE_LIST)) package PACKAGE_FORMAT=ipa
+
+### Dependencies #############################################################
+
+deps:
+	@THEOS="$(THEOS)" SDKVERSION="$(IOS_SDKVERSION)" ARCH="$(IOS_ARCH)" \
+		DEPLOYMENT="$(IOS_DEPLOYMENT)" \
+		"$(THEOS_PROJECT_DIR)/scripts/build-ios-deps.sh" "$(IOS_DEPS_DIR)"
+
+before-all::
+ifeq ($(wildcard $(IOS_DEPS_LIB)/libSDL.a),)
+	@$(PRINT_FORMAT_ERROR) "iOS dependencies not found in $(IOS_DEPS_LIB)." >&2
+	@$(PRINT_FORMAT_ERROR) "Run 'make deps' first (or set IOS_DEPS_DIR)." >&2
+	@exit 1
+endif

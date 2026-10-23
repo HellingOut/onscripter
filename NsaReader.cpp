@@ -51,9 +51,12 @@ int NsaReader::open(const char* nsa_path)
     bool archive_found = false;
     char archive_name[256];
 
-    if (!SarReader::open("arc.sar")) return 0;
-
-    sar_flag = false;
+    // A game may ship both a base arc.sar and a patch arc.nsa.  In that case
+    // the .nsa files must be searched first and .sar used as a fallback,
+    // otherwise files that only exist in the patch (e.g. the title images)
+    // cannot be loaded.
+    bool sar_found = (SarReader::open("arc.sar") == 0);
+    sar_flag = !sar_found;
 
     if (archive_type & ARCHIVE_TYPE_NS2) {
         for (int i = 0; i < MAX_NS2_ARCHIVE; i++) {
@@ -94,8 +97,15 @@ int NsaReader::open(const char* nsa_path)
         }
     }
 
-    if (!archive_found) return -1;
+    if (!archive_found) {
+        if (sar_found) {
+            sar_flag = true;
+            return 0;
+        }
+        return -1;
+    }
 
+    sar_flag = false;
     return 0;
 }
 
@@ -184,6 +194,8 @@ size_t NsaReader::getFileLength(const char* file_name)
             if ((ret = getFileLengthSub(&archive_info2[k][i], file_name))) return ret;
     }
 
+    if (num_of_sar_archives > 0) return SarReader::getFileLength(file_name);
+
     return 0;
 }
 
@@ -215,6 +227,11 @@ size_t NsaReader::getFile(const char* file_name, unsigned char* buffer, int* loc
                 return ret;
             }
         }
+    }
+
+    if (num_of_sar_archives > 0) {
+        if (location) *location = ARCHIVE_TYPE_SAR;
+        return SarReader::getFile(file_name, buffer, location);
     }
 
     return 0;

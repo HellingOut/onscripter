@@ -1200,11 +1200,103 @@ void ONScripter::timerEvent(bool init_flag)
     }
 }
 
+#if defined(IPHONE) && !defined(IOS)
+static bool touch_suppress_left_up = false;
+
+void ONScripter::handleTouchGesture(SDL_Event& event)
+{
+    if (event.type != SDL_FINGERDOWN &&
+        event.type != SDL_FINGERMOTION &&
+        event.type != SDL_FINGERUP)
+        return;
+
+    SDL_Touch* touch = SDL_GetTouch(event.tfinger.touchId);
+    if (!touch) return;
+
+    static bool gesture_active = false;
+    static int start_x = 0, start_y = 0;
+    static int last_x = 0, last_y = 0;
+
+    int x = device_width * event.tfinger.x / touch->xres - (device_width - screen_device_width) / 2;
+    int y = device_height * event.tfinger.y / touch->yres - (device_height - screen_device_height) / 2;
+
+    switch (event.type) {
+    case SDL_FINGERDOWN:
+        if (touch->num_fingers == 1) {
+            // One finger: keep the normal left click emulation from SDL_uikitview.
+            gesture_active = false;
+            start_x = last_x = x;
+            start_y = last_y = y;
+            touch_suppress_left_up = false;
+        }
+        else {
+            // Two or more fingers: the gesture is handled here, so suppress the
+            // left click that SDL_uikitview emits for the first finger.
+            gesture_active = true;
+            last_x = x;
+            last_y = y;
+            touch_suppress_left_up = true;
+        }
+        break;
+
+    case SDL_FINGERMOTION:
+        if (gesture_active) {
+            last_x = x;
+            last_y = y;
+        }
+        break;
+
+    case SDL_FINGERUP:
+        if (gesture_active && touch->num_fingers == 0) {
+            last_x = x;
+            last_y = y;
+
+            int dx = last_x - start_x;
+            int dy = last_y - start_y;
+            int abs_dx = dx < 0 ? -dx : dx;
+            int abs_dy = dy < 0 ? -dy : dy;
+
+            SDL_Event mouse_event;
+            memset(&mouse_event, 0, sizeof(mouse_event));
+            mouse_event.type = SDL_MOUSEBUTTONUP;
+            mouse_event.button.type = SDL_MOUSEBUTTONUP;
+            mouse_event.button.state = SDL_RELEASED;
+            mouse_event.button.x = last_x;
+            mouse_event.button.y = last_y;
+
+            if (abs_dy > 40 && abs_dy > abs_dx) {
+                // Vertical swipe: up = lookback, down = next page/advance.
+                if (dy < 0) {
+                    mouse_event.button.button = SDL_BUTTON_WHEELUP;
+                }
+                else if (system_menu_mode == SYSTEM_LOOKBACK) {
+                    mouse_event.button.button = SDL_BUTTON_WHEELDOWN;
+                }
+                else {
+                    mouse_event.button.button = SDL_BUTTON_LEFT;
+                }
+            }
+            else {
+                // Two-finger tap: same as a right click (system menu / back).
+                mouse_event.button.button = SDL_BUTTON_RIGHT;
+            }
+            SDL_PushEvent(&mouse_event);
+            touch_suppress_left_up = false;
+            gesture_active = false;
+        }
+        break;
+    }
+}
+#endif
+
 void ONScripter::runEventLoop()
 {
     SDL_Event event, tmp_event;
 
     while (SDL_WaitEvent(&event)) {
+#if defined(IPHONE) && !defined(IOS)
+        handleTouchGesture(event);
+#endif
 #if defined(USE_SMPEG)
         // required to repeat the movie
         if (layer_smpeg_sample)
@@ -1310,6 +1402,12 @@ void ONScripter::runEventLoop()
             current_button_state.event_button = event.button.button;
             if (!btndown_flag) break;
         case SDL_MOUSEBUTTONUP:
+#if defined(IPHONE) && !defined(IOS)
+            if (touch_suppress_left_up && event.button.button == SDL_BUTTON_LEFT) {
+                touch_suppress_left_up = false;
+                break;
+            }
+#endif
             current_button_state.event_type = event.type;
             current_button_state.event_button = event.button.button;
             ret = mousePressEvent(&event.button);

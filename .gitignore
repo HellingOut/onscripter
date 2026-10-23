@@ -8,3 +8,7 @@ nscriptdecode
 *.o
 *.exe
 *.obj
+.theos/
+deps/
+packages/
+compile_commands.json
