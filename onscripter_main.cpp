@@ -571,6 +571,10 @@ int main(int argc, char** argv)
         }
 
         ons.enableButtonShortCut();
+
+        // Lock the application to landscape.  The game window is always
+        // landscape on this engine, and portrait breaks the touch mapping.
+        SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
     }
 #endif
 
