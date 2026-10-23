@@ -23,11 +23,11 @@ No warranty is provided. Not liable for any damages arising from use of this cod
 # Building
 
 Make shure you have Theos and iPhoneOS7.1.sdk installed: https://theos.dev/docs/installation
-
+```shell
 git clone https://github.com/HellingOut/onscripter.git
 cd ./onscripter
 make -f Makefile.iPhone.Theos package PACKAGE_FORMAT=ipa
-
+```
 # Original Readme
 
 0. はじめに
