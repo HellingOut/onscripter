@@ -1,10 +1,10 @@
-Package: jp.ogapee.onscripter
+Package: ru.hellingout.onscripter
 Name: ONScripter
 Version: 20230825
 Architecture: iphoneos-arm
 Description: NScripter-compatible visual novel engine
-Homepage: https://onscripter.osdn.jp/
-Maintainer: Ogapee
+Homepage: https://github.com/HellingOut/onscripter
+Maintainer: HellingOut
 Author: Ogapee
 Section: Games
 Depends: firmware (>= 6.0)

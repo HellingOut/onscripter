@@ -9,7 +9,7 @@
 	<key>CFBundleExecutable</key>
 	<string>onscripter</string>
 	<key>CFBundleIdentifier</key>
-	<string>jp.ogapee.onscripter</string>
+	<string>ru.hellingout.onscripter</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
