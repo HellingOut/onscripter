@@ -22,53 +22,53 @@ No warranty is provided. Not liable for any damages arising from use of this cod
 
 # Original Readme
 
-0. ¤Ï¤¸¤á¤Ë
+0. ã¯ã˜ã‚ã«
 
-	¹â¶¶Ä¾¼ù»áºî¤Î NScripter ÍÑ¤ËºîÀ®¤µ¤ì¤¿¥¹¥¯¥ê¥×¥È¤òÆÈ¼«¤Ë²ò¼á¤·¤Æ¼Â¹Ô¤·¤Ş¤¹¡£
-
-
-1. Æ°ºî´Ä¶­
-
-	libjpeg 6b, bzip2-1.0.6, SDL-1.2.15, SDL_image-1.2.12, SDL_mixer-1.2.12, SDL_ttf-2.0.11, µÚ¤Ó SMPEG-0.4.5 ¤¬Æ°ºî¤¹¤ë´Ä¶­¤Ç¤¹¡£
-	Linux 4.9.6 + Xvnc4 + g++ (gcc 6.3.0) ¤Ç³«È¯¤·¤Æ¤¤¤Ş¤¹¡£
-	Linux, Windows 8 (Visual Studio 2017 C++), Xperia (Android 8.0.0), iPad2 Air (iOS 12.1) ¾å¤ÇÆ°ºî³ÎÇ§¤ò¤·¤Æ¤¤¤Ş¤¹¡£
-	¤½¤ÎÂ¾¡¢MacOS X, MacOS 9, Android(Nexus One, Emulator), iPhone, iPad, PSP, FreeBSD, Solaris(on SPARC), Tru64 UNIX, OS/Warp, iPod, PocketPC, Playstation3, Wii, GP2X, NetWalker, Dreamcast ¾å¤Ç¤ÎÆ°ºîÊó¹ğ¤ò¤¤¤¿¤À¤¤¤Æ¤¤¤Ş¤¹¡£
+	é«˜æ©‹ç›´æ¨¹æ°ä½œã® NScripter ç”¨ã«ä½œæˆã•ã‚ŒãŸã‚¹ã‚¯ãƒªãƒ—ãƒˆã‚’ç‹¬è‡ªã«è§£é‡ˆã—ã¦å®Ÿè¡Œã—ã¾ã™ã€‚
 
 
-2. ¥³¥ó¥Ñ¥¤¥ë¡¦µ¯Æ°ÊıË¡
+1. å‹•ä½œç’°å¢ƒ
 
-	¥³¥ó¥Ñ¥¤¥ë¡¦µ¯Æ°ÊıË¡¤Ï°Ê²¼¤ÎÄÌ¤ê¤Ç¤¹¡£
-	¤¿¤À¤·¡¢onscripter ¤ò¼Â¹Ô¤¹¤ë¾ì½ê¤Ë default.ttf, ¥¹¥¯¥ê¥×¥È, ¥¢¡¼¥«¥¤¥Ö¤¬¤Ê¤±¤ì¤Ğ¤¤¤±¤Ş¤»¤ó¡£
-	¾Ü¤·¤¯¤ÏÆ±º­¤Î www/onscripter.html ¤ò»²¾È¤·¤Æ¤¯¤À¤µ¤¤¡£
+	libjpeg 6b, bzip2-1.0.6, SDL-1.2.15, SDL_image-1.2.12, SDL_mixer-1.2.12, SDL_ttf-2.0.11, åŠã³ SMPEG-0.4.5 ãŒå‹•ä½œã™ã‚‹ç’°å¢ƒã§ã™ã€‚
+	Linux 4.9.6 + Xvnc4 + g++ (gcc 6.3.0) ã§é–‹ç™ºã—ã¦ã„ã¾ã™ã€‚
+	Linux, Windows 8 (Visual Studio 2017 C++), Xperia (Android 8.0.0), iPad2 Air (iOS 12.1) ä¸Šã§å‹•ä½œç¢ºèªã‚’ã—ã¦ã„ã¾ã™ã€‚
+	ãã®ä»–ã€MacOS X, MacOS 9, Android(Nexus One, Emulator), iPhone, iPad, PSP, FreeBSD, Solaris(on SPARC), Tru64 UNIX, OS/Warp, iPod, PocketPC, Playstation3, Wii, GP2X, NetWalker, Dreamcast ä¸Šã§ã®å‹•ä½œå ±å‘Šã‚’ã„ãŸã ã„ã¦ã„ã¾ã™ã€‚
 
-	Linux ¤â¤·¤¯¤Ï FreeBSD, Solaris ¤Î¾ì¹ç
+
+2. ã‚³ãƒ³ãƒ‘ã‚¤ãƒ«ãƒ»èµ·å‹•æ–¹æ³•
+
+	ã‚³ãƒ³ãƒ‘ã‚¤ãƒ«ãƒ»èµ·å‹•æ–¹æ³•ã¯ä»¥ä¸‹ã®é€šã‚Šã§ã™ã€‚
+	ãŸã ã—ã€onscripter ã‚’å®Ÿè¡Œã™ã‚‹å ´æ‰€ã« default.ttf, ã‚¹ã‚¯ãƒªãƒ—ãƒˆ, ã‚¢ãƒ¼ã‚«ã‚¤ãƒ–ãŒãªã‘ã‚Œã°ã„ã‘ã¾ã›ã‚“ã€‚
+	è©³ã—ãã¯åŒæ¢±ã® www/onscripter.html ã‚’å‚ç…§ã—ã¦ãã ã•ã„ã€‚
+
+	Linux ã‚‚ã—ãã¯ FreeBSD, Solaris ã®å ´åˆ
 	$ make -f Makefile.Linux
 	$ onscripter
 
-	Windows ¤Î¾ì¹ç (DOS ¥×¥í¥ó¥×¥È¤Ç)
-	$ https://onscripter.osdn.jp/win/ ¤ò»²¹Í¤Ë SDL, SDL_image, SDL_mixer, SDL_ttf, smpeg, Lua, bzip2 ¤ò¥¤¥ó¥¹¥È¡¼¥ë¤·¤Æ¤¯¤À¤µ¤¤¡£
-	$ ONScripter.sln ¤ò Visual Studio ¤Ç³«¤¤¤Æ¥Ó¥ë¥É¤·¤Æ¤¯¤À¤µ¤¤¡£
+	Windows ã®å ´åˆ (DOS ãƒ—ãƒ­ãƒ³ãƒ—ãƒˆã§)
+	$ https://onscripter.osdn.jp/win/ ã‚’å‚è€ƒã« SDL, SDL_image, SDL_mixer, SDL_ttf, smpeg, Lua, bzip2 ã‚’ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã—ã¦ãã ã•ã„ã€‚
+	$ ONScripter.sln ã‚’ Visual Studio ã§é–‹ã„ã¦ãƒ“ãƒ«ãƒ‰ã—ã¦ãã ã•ã„ã€‚
 	$ onscripter.exe
 
-	MacOS X ¤Î¾ì¹ç
+	MacOS X ã®å ´åˆ
 	$ make -f Makefile.MacOSX
 	$ onscripter
 
-	Zaurus (SL-5500, SL-A300, SL-B500, SL-C700) ¤Î¾ì¹ç
-	ÊÌ¤Î¥Ş¥·¥ó(Linux Åù)¾å¤Ç¥¯¥í¥¹¥³¥ó¥Ñ¥¤¥ë
+	Zaurus (SL-5500, SL-A300, SL-B500, SL-C700) ã®å ´åˆ
+	åˆ¥ã®ãƒã‚·ãƒ³(Linux ç­‰)ä¸Šã§ã‚¯ãƒ­ã‚¹ã‚³ãƒ³ãƒ‘ã‚¤ãƒ«
 	$ make -f Makefile.ARMLinux
-	Zaurus ¤Î Qtopia ¾å¤«¤é¼Â¹Ô
+	Zaurus ã® Qtopia ä¸Šã‹ã‚‰å®Ÿè¡Œ
 	$ onscripter
 
-	¤½¤ì°Ê³°¤Î¥×¥é¥Ã¥È¥Õ¥©¡¼¥à¤Ç¤Ï¡¢Makefile.Linux ¤ò¿÷·Á¤Ë¤·¤Æ Makefile.### ¤òºî¤Ã¤Æ¤¯¤À¤µ¤¤¡£
+	ãã‚Œä»¥å¤–ã®ãƒ—ãƒ©ãƒƒãƒˆãƒ•ã‚©ãƒ¼ãƒ ã§ã¯ã€Makefile.Linux ã‚’é››å½¢ã«ã—ã¦ Makefile.### ã‚’ä½œã£ã¦ãã ã•ã„ã€‚
 
-	ONScripter ¤Ï¡¢¥«¥ì¥ó¥È¥Ç¥£¥ì¥¯¥È¥ê¤Î 0.txt ¤â¤·¤¯¤Ï nscript.dat ¤ò¼«Æ°Åª¤ËÆÉ¤ß¹ş¤ß¡¢¤½¤ì¤Ë¤·¤¿¤¬¤Ã¤Æ¥«¥ì¥ó¥È¥Ç¥£¥ì¥¯¥È¥ê¤Î arc.sar ¤â¤·¤¯¤Ï arc.nsa ¤òÆÉ¤ß¹ş¤ß¤Ş¤¹¡£
+	ONScripter ã¯ã€ã‚«ãƒ¬ãƒ³ãƒˆãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã® 0.txt ã‚‚ã—ãã¯ nscript.dat ã‚’è‡ªå‹•çš„ã«èª­ã¿è¾¼ã¿ã€ãã‚Œã«ã—ãŸãŒã£ã¦ã‚«ãƒ¬ãƒ³ãƒˆãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã® arc.sar ã‚‚ã—ãã¯ arc.nsa ã‚’èª­ã¿è¾¼ã¿ã¾ã™ã€‚
 
 
-3. Ï¢ÍíÀè
+3. é€£çµ¡å…ˆ
 
-	ËÜ¥½¥Õ¥È¥¦¥§¥¢¤Ë´Ø¤¹¤ëÌä¤¤¹ç¤ï¤»¤Ï
+	æœ¬ã‚½ãƒ•ãƒˆã‚¦ã‚§ã‚¢ã«é–¢ã™ã‚‹å•ã„åˆã‚ã›ã¯
 
 	ogapee@aqua.dti2.ne.jp
 
-	¤Ş¤ÇÅÅ»Ò¥á¡¼¥ë¤Ë¤Æ¤ª´ê¤¤¤·¤Ş¤¹¡£
+	ã¾ã§é›»å­ãƒ¡ãƒ¼ãƒ«ã«ã¦ãŠé¡˜ã„ã—ã¾ã™ã€‚
