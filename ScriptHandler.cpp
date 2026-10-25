@@ -231,9 +231,30 @@ readTokenTop:
             }
             else {
                 ignore_clickstr_flag = false;
-                if (!eng_flag && (ch == '%' || ch == '?')) {
+                if (!eng_flag && ch == '%') {
                     addIntVariable(&buf);
                     SKIP_SPACE(buf);
+                }
+                else if (!eng_flag && ch == '?') {
+                    // '?' in text is an array variable reference only when
+                    // followed by array syntax: digit, '[' or a letter
+                    // (start of a named array).  Otherwise it is a literal
+                    // question mark (e.g. "...ли?" in Russian text).
+                    char next = *(buf + 1);
+                    bool is_array_ref =
+                        (next >= '0' && next <= '9') ||
+                        next == '[' ||
+                        (next >= 'a' && next <= 'z') ||
+                        (next >= 'A' && next <= 'Z') ||
+                        next == '_';
+                    if (is_array_ref) {
+                        addIntVariable(&buf);
+                        SKIP_SPACE(buf);
+                    }
+                    else {
+                        addStringBuffer(ch);
+                        buf++;
+                    }
                 }
                 else if (!eng_flag && (ch == '$')) {
                     addStrVariable(&buf);
