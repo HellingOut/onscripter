@@ -213,8 +213,8 @@ void ONScripter::drawChar(char* text, FontInfo* info, bool flush_flag, bool look
     info->old_xy[0] = info->x(false);
     info->old_xy[1] = info->y(false);
 
-    char text2[4] = {};
-    int n = script_h.enc.getBytes(text[0]);
+    char text2[8] = {};
+    int n = script_h.enc.getBytes(text);
     for (int i = 0; i < n; i++)
         text2[i] = text[i];
 
@@ -287,7 +287,7 @@ void ONScripter::drawString(const char* str, uchar3 color, FontInfo* info, bool 
     bool skip_whitespace_flag = true;
     if (script_h.enc.getEncoding() == Encoding::CODE_UTF8)
         skip_whitespace_flag = false;
-    char text[4] = {};
+    char text[8] = {};
     while (*str) {
         while (*str == ' ' && skip_whitespace_flag) str++;
 
@@ -340,7 +340,7 @@ void ONScripter::drawString(const char* str, uchar3 color, FontInfo* info, bool 
             }
         }
 #endif
-        int n = script_h.enc.getBytes(*str);
+        int n = script_h.enc.getBytes(str);
         if (n >= 2) {
             if (checkLineBreak(str, info)) {
                 info->newLine();
@@ -417,7 +417,7 @@ void ONScripter::restoreTextBuffer(SDL_Surface* surface)
 {
     text_info.fill(0, 0, 0, 0);
 
-    char out_text[4] = {};
+    char out_text[8] = {};
     FontInfo f_info = sentence_font;
     f_info.clear();
     for (int i = 0; i < current_page->text_count; i++) {
@@ -457,12 +457,13 @@ void ONScripter::restoreTextBuffer(SDL_Surface* surface)
             }
 #endif
 
-            int n = script_h.enc.getBytes(out_text[0]);
+            int n = script_h.enc.getBytes(current_page->text + i);
             if (n >= 2) {
                 for (int j = 1; j < n; j++)
                     out_text[j] = current_page->text[i + j];
 
-                if (checkLineBreak(current_page->text + i, &f_info))
+                if (checkLineBreak(current_page->text + i, &f_info) ||
+                    checkLigatureLineBreak(current_page->text + i, &f_info))
                     f_info.newLine();
                 i += n - 1;
             }
@@ -705,7 +706,7 @@ void ONScripter::startRuby(const char* buf, FontInfo& info)
             break;
         }
         else {
-            int n = script_h.enc.getBytes(*buf);
+            int n = script_h.enc.getBytes(buf);
             if (ruby_struct.stage == RubyStruct::BODY)
                 ruby_struct.body_count += (n == 1) ? 1 : 2;
             else if (ruby_struct.stage == RubyStruct::RUBY)
@@ -720,14 +721,13 @@ void ONScripter::startRuby(const char* buf, FontInfo& info)
 
 void ONScripter::endRuby(bool flush_flag, bool lookback_flag, SDL_Surface* surface, AnimationInfo* cache_info)
 {
-    char out_text[4] = {};
+    char out_text[8] = {};
     if (sentence_font.rubyon_flag) {
         ruby_font.clear();
         const char* buf = ruby_struct.ruby_start;
         while (buf < ruby_struct.ruby_end) {
-            int n = 2;
-            if (script_h.enc.getEncoding() == Encoding::CODE_UTF8)
-                n = script_h.enc.getBytes(buf[0]);
+            int n = script_h.enc.getBytes(buf);
+            if (n <= 0) break;
             for (int i = 0; i < n; i++)
                 out_text[i] = buf[i];
             drawChar(out_text, &ruby_font, flush_flag, lookback_flag, surface, cache_info);
@@ -748,7 +748,7 @@ int ONScripter::textCommand()
 
     bool tag_flag = true;
     unsigned short unicode = script_h.enc.getUTF16("�y", Encoding::CODE_CP932);
-    int n = script_h.enc.getBytes(buf[string_buffer_offset]);
+    int n = script_h.enc.getBytes(buf + string_buffer_offset);
     if (buf[string_buffer_offset] == '[')
         string_buffer_offset++;
     else if (zenkakko_flag &&
@@ -761,7 +761,7 @@ int ONScripter::textCommand()
     int end_offset = start_offset;
     while (tag_flag && buf[string_buffer_offset]) {
         unsigned short unicode = script_h.enc.getUTF16("�z", Encoding::CODE_CP932);
-        int n = script_h.enc.getBytes(buf[string_buffer_offset]);
+        int n = script_h.enc.getBytes(buf + string_buffer_offset);
         if (zenkakko_flag &&
             script_h.enc.getUTF16(buf + string_buffer_offset) == unicode) {
             end_offset = string_buffer_offset;
@@ -821,17 +821,17 @@ bool ONScripter::checkLineBreak(const char* buf, FontInfo* fi)
     if (!is_kinsoku) return false;
 
     // check start kinsoku
-    int n = script_h.enc.getBytes(buf[0]);
+    int n = script_h.enc.getBytes(buf);
     if (isStartKinsoku(buf + n) ||
         (buf[n] == '_' && isStartKinsoku(buf + n + 1))) {
         const char* buf2 = buf + n;
         if (buf2[0] == '_') buf2++;
         int i = 2;
         while (!fi->isEndOfLine(i)) {
-            n = script_h.enc.getBytes(buf2[0]);
+            n = script_h.enc.getBytes(buf2);
             if (buf2[n] == 0x0a || buf2[n] == 0)
                 break;
-            else if (script_h.enc.getBytes(buf2[n]) == 1)
+            else if (script_h.enc.getBytes(buf2 + n) == 1)
                 buf2++;
             else if (isStartKinsoku(buf2 + n)) {
                 i += 2;
@@ -849,10 +849,10 @@ bool ONScripter::checkLineBreak(const char* buf, FontInfo* fi)
         const char* buf2 = buf + n;
         int i = 2;
         while (!fi->isEndOfLine(i)) {
-            n = script_h.enc.getBytes(buf2[0]);
+            n = script_h.enc.getBytes(buf2);
             if (buf2[n] == 0x0a || buf2[n] == 0)
                 break;
-            else if (script_h.enc.getBytes(buf2[n]) == 1)
+            else if (script_h.enc.getBytes(buf2 + n) == 1)
                 buf2++;
             else if (isEndKinsoku(buf2 + n)) {
                 i += 2;
@@ -870,24 +870,45 @@ bool ONScripter::checkLineBreak(const char* buf, FontInfo* fi)
 
 bool ONScripter::checkLigatureLineBreak(const char* buf, FontInfo* fi)
 {
-    if (script_h.current_language != 0) return false;
+    // Word wrap is only meaningful for space-separated scripts (Latin,
+    // Cyrillic, Greek...).  CJK scripts have no spaces and are wrapped
+    // per character by the kinsoku rules, so they must not use this.
+    if (buf[0] == 0 || buf[0] == 0x0a) return false;
+
+    unsigned short unicode = script_h.enc.getUTF16(buf);
+    if (unicode == 0 || unicode >= 0x2e80) return false;
+
+    // Never wrap at the very beginning of a line: there is nothing to gain
+    // and an overlong word would only be pushed one line down.
+    if (fi->isLineEmpty()) return false;
 
     openFont(fi);
 
-    int w = 0;
+    // Measure the next word exactly the way drawChar() advances the cursor.
+    float w = 0;
     while (buf[0] != ' ' && buf[0] != 0x0a && buf[0] != 0 &&
+           buf[0] != '@' && buf[0] != '\\' &&
            buf[0] != script_h.enc.getTextMarker()) {
-        int n = script_h.enc.getBytes(buf[0]);
-        unsigned short unicode = script_h.enc.getUTF16(buf);
+        unicode = script_h.enc.getUTF16(buf);
+        // A Latin/Cyrillic word ends where CJK text begins.
+        if (unicode >= 0x2e80) break;
 
-        int minx, maxx, miny, maxy, advanced;
-        TTF_GlyphMetrics((TTF_Font*)fi->ttf_font[0], unicode,
-                         &minx, &maxx, &miny, &maxy, &advanced);
-
-        w += advanced + fi->pitch_xy[0] - fi->font_size_xy[0];
+        int n = script_h.enc.getBytes(buf);
+        if (script_h.enc.getEncoding() == Encoding::CODE_UTF8) {
+            int minx, maxx, miny, maxy, advanced;
+            TTF_GlyphMetrics((TTF_Font*)fi->ttf_font[0], unicode,
+                             &minx, &maxx, &miny, &maxy, &advanced);
+            float adv = advanced;
+            if (n == 1) adv -= 0.5; // same adjustment as in drawChar()
+            w += adv + fi->pitch_xy[0] - fi->font_size_xy[0];
+        }
+        else {
+            // drawChar() advances by 1 half-width unit for a single-byte
+            // character and by 2 for a double-byte one.
+            w += (n >= 2) ? fi->pitch_xy[0] : fi->pitch_xy[0] * 0.5f;
+        }
         buf += n;
     }
-    w -= fi->pitch_xy[0] - fi->font_size_xy[0];
 
     return fi->isEndOfLine(w * 2.0 / fi->pitch_xy[0]);
 }
@@ -911,7 +932,7 @@ void ONScripter::processEOT()
 bool ONScripter::processText()
 {
     // printf("textCommand %c %d %d %d\n", script_h.getStringBuffer()[ string_buffer_offset ], string_buffer_offset, event_mode, line_enter_status);
-    char out_text[4] = {};
+    char out_text[8] = {};
 
     // printf("*** textCommand %d (%d,%d)\n", string_buffer_offset, sentence_font.xy[0], sentence_font.xy[1]);
 
@@ -930,11 +951,12 @@ bool ONScripter::processText()
     new_line_skip_flag = false;
 
     char ch = script_h.getStringBuffer()[string_buffer_offset];
-    int n = script_h.enc.getBytes(ch);
+    int n = script_h.enc.getBytes(script_h.getStringBuffer() + string_buffer_offset);
     if (n >= 2) {
         /* ---------------------------------------- */
         /* Kinsoku process */
-        if (checkLineBreak(script_h.getStringBuffer() + string_buffer_offset, &sentence_font)) {
+        if (checkLineBreak(script_h.getStringBuffer() + string_buffer_offset, &sentence_font) ||
+            checkLigatureLineBreak(script_h.getStringBuffer() + string_buffer_offset, &sentence_font)) {
             sentence_font.newLine();
             for (int i = 0; i < indent_offset; i++) {
                 if (script_h.enc.getEncoding() == Encoding::CODE_CP932) {
@@ -1114,6 +1136,15 @@ bool ONScripter::processText()
         in_textbtn_flag = false;
         return true;
     }
+    else if (script_h.enc.getEncoding() == Encoding::CODE_CP1251 &&
+             ch == script_h.enc.getTextMarker()) {
+        // In CP1251 scripts the backtick delimits 1-byte text.  Lines that
+        // begin with a command prefix (e.g. "!s0`...`") are parsed by the
+        // generic text branch, so their delimiters remain in the buffer.
+        // Skip them instead of drawing them.
+        string_buffer_offset++;
+        return true;
+    }
     else if (script_h.enc.getEncoding() == Encoding::CODE_UTF8 &&
              ch == script_h.enc.getTextMarker()) {
         int status = script_h.getEndStatus();
@@ -1202,7 +1233,8 @@ bool ONScripter::processText()
             num_chars_in_sentence++;
         }
         else if (script_h.getEndStatus() & ScriptHandler::END_1BYTE_CHAR ||
-                 script_h.enc.getEncoding() == Encoding::CODE_UTF8) {
+                 script_h.enc.getEncoding() == Encoding::CODE_UTF8 ||
+                 script_h.enc.getEncoding() == Encoding::CODE_CP1251) {
             if (checkLigatureLineBreak(script_h.getStringBuffer() + string_buffer_offset, &sentence_font))
                 sentence_font.newLine();
             drawChar(out_text, &sentence_font, flush_flag, true, accumulation_surface, &text_info);

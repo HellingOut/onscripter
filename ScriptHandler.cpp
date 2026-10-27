@@ -214,7 +214,7 @@ readTokenTop:
         bool ignore_clickstr_flag = false;
         bool eng_flag = false;
         while (1) {
-            int n = enc.getBytes(ch);
+            int n = enc.getBytes(buf);
             char* old_buf = buf;
             if (n >= 2) {
                 for (int i = 0; i < n - 1; i++) {
@@ -305,7 +305,7 @@ readTokenTop:
                 break;
             }
 
-            int n = enc.getBytes(ch);
+            int n = enc.getBytes(buf);
             for (int i = 0; i < n; i++) {
                 addStringBuffer(ch);
                 ch = *++buf;
@@ -457,7 +457,7 @@ void ScriptHandler::skipToken()
         if (*buf == 0x0a || *buf == 0 ||
             (!quat_flag && !text_flag && (*buf == ':' || *buf == ';'))) break;
         if (*buf == '"') quat_flag = !quat_flag;
-        int n = enc.getBytes(*buf);
+        int n = enc.getBytes(buf);
         if (n >= 2) {
             buf += n;
             if (!quat_flag) text_flag = true;
@@ -732,12 +732,15 @@ int ScriptHandler::checkClickstr(const char* buf, bool recursive_flag)
         if (double_byte_check) {
             unsigned short u1 = enc.getUTF16(click_buf);
             unsigned short u2 = enc.getUTF16(buf);
-            int n = enc.getBytes(buf[0]);
+            int n = enc.getBytes(buf);
             if (u1 == u2) {
                 if (!recursive_flag && checkClickstr(buf + n, true) > 0) return 0;
                 return n;
             }
-            click_buf += n;
+            // Advance over the click-string character by its own size: the
+            // text may use a wider representation (e.g. a six-byte CP1251
+            // escape) than a plain ASCII click character.
+            click_buf += enc.getBytes(click_buf);
         }
         else {
             if (click_buf[0] == buf[0]) {
@@ -1192,10 +1195,10 @@ int ScriptHandler::detectEncoding()
 
 // Some Russian translations of Japanese games escape characters which are
 // awkward in their mixed CP1251/CP932 script files as 0xDA followed by the
-// five-digit decimal character code.  In the Higanbana translation this is
-// used for the guillemets: 0xDA00171 -> 0xAB ("«"), 0xDA00187 -> 0xBB ("»").
-// Convert those escapes before the script is parsed, so normal CP1251
-// decoding handles the resulting bytes.
+// five-digit decimal character code.  ASCII codes are converted in place so
+// that spaces and punctuation behave normally for word wrap and parsing.
+// Codes above 0x7f (including Japanese characters) are left in the buffer and
+// decoded as a single character by Encoding::getBytes()/getUTF16().
 static void convertCP1251Escapes(char* buf, int& length)
 {
     char* src = buf;
@@ -1207,14 +1210,13 @@ static void convertCP1251Escapes(char* buf, int& length)
             src[2] >= '0' && src[2] <= '9' &&
             src[3] >= '0' && src[3] <= '9' &&
             src[4] >= '0' && src[4] <= '9' &&
-            src[5] >= '0' && src[5] <= '9' &&
-            (end - src == 6 || src[6] < '0' || src[6] > '9')) {
+            src[5] >= '0' && src[5] <= '9') {
             int code = (src[1] - '0') * 10000 +
                        (src[2] - '0') * 1000 +
                        (src[3] - '0') * 100 +
                        (src[4] - '0') * 10 +
                        (src[5] - '0');
-            if (code >= 0x20 && code < 0x100) {
+            if (code >= 0x20 && code < 0x80) {
                 *dst++ = (char)code;
                 src += 6;
                 continue;

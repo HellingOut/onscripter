@@ -54,7 +54,7 @@ int NL_dofile(lua_State* state)
     unsigned char* p = buffer;
     unsigned char* p2 = buffer2;
     while (*p) {
-        int n = lh->sh->enc.getBytes(*p);
+        int n = lh->sh->enc.getBytes((const char*)p);
         for (int i = 0; i < n; i++) {
             if (i > 0 && *p == '\\') *p2++ = '\\';
             *p2++ = *p++;
@@ -1135,7 +1135,7 @@ void LUAHandler::loadInitScript()
     unsigned char* p = buffer;
     unsigned char* p2 = buffer2;
     while (*p) {
-        int n = sh->enc.getBytes(*p);
+        int n = sh->enc.getBytes((const char*)p);
         for (int i = 0; i < n; i++) {
             if (i > 0 && *p == '\\') *p2++ = '\\';
             *p2++ = *p++;

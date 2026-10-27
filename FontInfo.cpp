@@ -236,7 +236,17 @@ void FontInfo::setLineArea(const char* buf)
         num_xy[tateyoko_mode] = w * 2 / pitch_xy[tateyoko_mode] + 1;
     }
     else {
-        num_xy[tateyoko_mode] = strlen(buf) / 2 + 1;
+        // Count half-width units instead of raw bytes: a CP1251 escape is six
+        // bytes but still occupies a single double-width cell.
+        int w = 0;
+        const char* p = buf;
+        while (p[0]) {
+            int n = enc->getBytes(p);
+            if (n <= 0) break;
+            w += (n >= 2) ? 2 : 1;
+            p += n;
+        }
+        num_xy[tateyoko_mode] = w / 2 + 1;
     }
     num_xy[1 - tateyoko_mode] = 1;
 }

@@ -555,7 +555,7 @@ int ONScripter::splitCommand()
 
         unsigned int c=0;
         while(save_buf[c] != delimiter && save_buf[c] != '\0')
-            c += script_h.enc.getBytes(save_buf[c]);
+            c += script_h.enc.getBytes(save_buf + c);
         
         if (c < 256) 
             token = token256;
@@ -2351,9 +2351,9 @@ int ONScripter::gettagCommand()
 
     char *buf = pretext_buf;
 
-    int n = script_h.enc.getBytes(buf[0]);
+    int n = script_h.enc.getBytes(buf);
     unsigned short unicode1 = script_h.enc.getUTF16(buf);
-    unsigned short unicode2 = script_h.enc.getUTF16("¡Ú", Encoding::CODE_CP932);
+    unsigned short unicode2 = script_h.enc.getUTF16("ï¿½ï¿½", Encoding::CODE_CP932);
     if (buf[0] == '[')
         buf++;
     else if (zenkakko_flag && unicode1 == unicode2)
@@ -2378,10 +2378,10 @@ int ONScripter::gettagCommand()
             if (buf){
                 const char *buf_start = buf;
                 unicode1 = script_h.enc.getUTF16(buf);
-                unicode2 = script_h.enc.getUTF16("¡Û", Encoding::CODE_CP932);
+                unicode2 = script_h.enc.getUTF16("ï¿½ï¿½", Encoding::CODE_CP932);
                 while(*buf != '/' && *buf != 0 && *buf != ']' && 
                       (!zenkakko_flag || unicode1 != unicode2)){
-                    buf += script_h.enc.getBytes(buf[0]);
+                    buf += script_h.enc.getBytes(buf);
                 }
                 setStr( &script_h.getVariableData(script_h.pushed_variable.var_no).str, buf_start, buf-buf_start );
             }
@@ -2398,9 +2398,9 @@ int ONScripter::gettagCommand()
     }
     while(end_status & ScriptHandler::END_COMMA);
 
-    n = script_h.enc.getBytes(pretext_buf[0]);
+    n = script_h.enc.getBytes(pretext_buf);
     unicode1 = script_h.enc.getUTF16(pretext_buf);
-    unicode2 = script_h.enc.getUTF16("¡Û", Encoding::CODE_CP932);
+    unicode2 = script_h.enc.getUTF16("ï¿½ï¿½", Encoding::CODE_CP932);
     if (pretext_buf[0] == ']')
         pretext_buf++;
     else if (zenkakko_flag && unicode1 == unicode2)
@@ -2671,7 +2671,7 @@ int ONScripter::getlogCommand()
             char *p2 = buf = new char[page->text_count];
             count = 0;
             for (int i=0 ; i<page->text_count ; i++){
-                int n = script_h.enc.getBytes(*p);
+                int n = script_h.enc.getBytes(p);
                 if (n >= 2){
                     for (int j=0; j<n; j++)
                         p2[count++] = *p++;
@@ -3462,7 +3462,7 @@ int ONScripter::captionCommand()
     if (script_h.enc.getEncoding() == Encoding::CODE_UTF8){
         int c = 0;
         while(buf[0] != 0){
-            int n = script_h.enc.getBytes(buf[0]);
+            int n = script_h.enc.getBytes(buf);
             unsigned short unicode = script_h.enc.getUTF16(buf);
             if (n == 1){
                 buf2[c++] = unicode;
@@ -4194,7 +4194,7 @@ void ONScripter::NSDCallCommand(int texnum, const char *str1, int proc, const ch
         uchar3 color = {0xff, 0xff, 0xff};
         char *p = (char*)start[num_param-1], *p2 = (char*)start[num_param-1];
         while(*p){
-            int n = script_h.enc.getBytes(*p);
+            int n = script_h.enc.getBytes(p);
             if (n >= 2){
                 for (int i=0; i<n; i++)
                     *p2++ = *p++;

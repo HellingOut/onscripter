@@ -32,9 +32,9 @@ extern "C" {
 #define VERSION_STR1 "ONScripter"
 #define VERSION_STR2 "Copyright (C) 2001-2020 Studio O.G.A. All Rights Reserved."
 
-#define DEFAULT_SAVE_MENU_NAME "ƒƒZ[ƒu„"
-#define DEFAULT_LOAD_MENU_NAME "ƒƒ[ƒh„"
-#define DEFAULT_SAVE_ITEM_NAME "‚µ‚¨‚è"
+#define DEFAULT_SAVE_MENU_NAME "ï¿½ï¿½ï¿½Zï¿½[ï¿½uï¿½ï¿½"
+#define DEFAULT_LOAD_MENU_NAME "ï¿½ï¿½ï¿½ï¿½ï¿½[ï¿½hï¿½ï¿½"
+#define DEFAULT_SAVE_ITEM_NAME "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"
 
 #define DEFAULT_TEXT_SPEED_LOW 40
 #define DEFAULT_TEXT_SPEED_MIDDLE 20
@@ -793,14 +793,14 @@ void ScriptParser::setKinsoku(const char* start_chrs, const char* end_chrs, bool
     int num_start = 0;
     const char* kchr = start_chrs;
     while (*kchr != '\0') {
-        kchr += script_h.enc.getBytes(*kchr, code);
+        kchr += script_h.enc.getBytes(kchr, code);
         num_start++;
     }
 
     int num_end = 0;
     kchr = end_chrs;
     while (*kchr != '\0') {
-        kchr += script_h.enc.getBytes(*kchr, code);
+        kchr += script_h.enc.getBytes(kchr, code);
         num_end++;
     }
 
@@ -820,7 +820,7 @@ void ScriptParser::setKinsoku(const char* start_chrs, const char* end_chrs, bool
     kchr = start_chrs;
     for (int i = 0; i < num_start; i++) {
         start_kinsoku[num_start_kinsoku + i].unicode = script_h.enc.getUTF16(kchr, code);
-        kchr += script_h.enc.getBytes(*kchr, code);
+        kchr += script_h.enc.getBytes(kchr, code);
     }
     num_start_kinsoku += num_start;
     if (tmp) delete[] tmp;
@@ -841,7 +841,7 @@ void ScriptParser::setKinsoku(const char* start_chrs, const char* end_chrs, bool
     kchr = end_chrs;
     for (int i = 0; i < num_end; i++) {
         end_kinsoku[num_end_kinsoku + i].unicode = script_h.enc.getUTF16(kchr, code);
-        kchr += script_h.enc.getBytes(*kchr, code);
+        kchr += script_h.enc.getBytes(kchr, code);
     }
     num_end_kinsoku += num_end;
     if (tmp) delete[] tmp;

@@ -634,9 +634,9 @@ int ScriptParser::midCommand()
         unsigned int len2 = 0;
         if (script_h.enc.getEncoding() == Encoding::CODE_UTF8) {
             for (unsigned int i = 0; i < start; i++)
-                save_buf += script_h.enc.getBytes(*save_buf);
+                save_buf += script_h.enc.getBytes(save_buf);
             for (unsigned int i = 0; i < len; i++)
-                len2 += script_h.enc.getBytes(save_buf[len2]);
+                len2 += script_h.enc.getBytes(save_buf + len2);
         }
         else {
             save_buf += start;

@@ -58,6 +58,28 @@ static unsigned short convCP1251ToUTF16(unsigned char ch)
     return table[ch - 0x80];
 }
 
+// Some Russian translations of Japanese games mix CP1251 text with Japanese
+// characters encoded as 0xDA followed by the five-digit decimal Unicode code
+// point (e.g. 0xDA30495 is U+30495 "真").  Those escapes must be treated as a
+// single character by the whole engine, otherwise the digits are rendered
+// literally.
+static bool decodeCP1251Escape(const char* text, int& codepoint)
+{
+    if ((unsigned char)text[0] != 0xda) return false;
+
+    int code = 0;
+    for (int i = 1; i <= 5; i++) {
+        if (text[i] < '0' || text[i] > '9') return false;
+        code = code * 10 + (text[i] - '0');
+    }
+    // The escape is exactly five digits; a following digit is ordinary text
+    // (e.g. 0xDA122881 is U+3000 followed by '1').
+    if (code <= 0 || code > 0xffff) return false;
+
+    codepoint = code;
+    return true;
+}
+
 int Encoding::getBytes(unsigned char ch, int code)
 {
     if (code == -1) code = this->code;
@@ -78,12 +100,24 @@ int Encoding::getBytes(unsigned char ch, int code)
     return 1;
 }
 
+int Encoding::getBytes(const char* text, int code)
+{
+    if (code == -1) code = this->code;
+
+    if (code == CODE_CP1251) {
+        int codepoint;
+        if (decodeCP1251Escape(text, codepoint)) return 6;
+    }
+
+    return getBytes((unsigned char)text[0], code);
+}
+
 int Encoding::getNum(const unsigned char* buf)
 {
     int n = 0;
 
     while (buf[0] != 0) {
-        int n2 = getBytes(buf[0]);
+        int n2 = getBytes((const char*)buf);
         n++;
         if (n2 > 1) n++;
         buf += n2;
@@ -120,7 +154,11 @@ unsigned short Encoding::getUTF16(const char* text, int code)
         }
     }
     else if (code == CODE_CP1251) {
-        unicode = convCP1251ToUTF16((unsigned char)text[0]);
+        int codepoint;
+        if (decodeCP1251Escape(text, codepoint))
+            unicode = (unsigned short)codepoint;
+        else
+            unicode = convCP1251ToUTF16((unsigned char)text[0]);
     }
     else {
         unicode = convUTF8ToUTF16(&text);
